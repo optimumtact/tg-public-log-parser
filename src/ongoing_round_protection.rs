@@ -28,8 +28,7 @@ impl OngoingRoundProtection {
     }
 
     pub async fn path_is_ongoing_round(&self, path: &Path) -> eyre::Result<bool> {
-        let last_known_round_ids = self.last_known_round_ids().await?;
-        let last_known_round_ids = last_known_round_ids.lock();
+        let last_known_round_ids = self.last_known_round_ids().await;
 
         for ancestor in path.ancestors() {
             let filename = match ancestor.file_name() {
@@ -39,6 +38,13 @@ impl OngoingRoundProtection {
             .to_string_lossy();
 
             if let Some(round_id_text) = filename.strip_prefix("round-") {
+                let last_known_round_ids = match &last_known_round_ids {
+                    Ok(ids) => ids,
+                    Err(_) => return Ok(true),
+                };
+
+                let last_known_round_ids = last_known_round_ids.lock();
+
                 let round_id: u64 = round_id_text.parse().context("parsing round id")?;
 
                 let server_identifier = match &self.config.paths_to_identifiers {
@@ -133,7 +139,10 @@ async fn fetch_ongoing_rounds(serverinfo_url: &str) -> eyre::Result<HashMap<Stri
 
     let round_ids = HashMap::from_iter(server_info.servers.into_iter().filter_map(|server| {
         server.data.and_then(|data| match data.round_id {
-            Some(round_id) => Some((data.identifier, round_id.parse().expect("invalid round id"))),
+            Some(round_id) => {
+                let round_id = round_id.parse().ok()?;
+                Some((data.identifier, round_id))
+            }
             None => None,
         })
     }));
