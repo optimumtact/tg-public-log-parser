@@ -1292,6 +1292,7 @@ dependencies = [
  "axum",
  "eyre",
  "parking_lot",
+ "percent-encoding",
  "regex",
  "reqwest",
  "serde",

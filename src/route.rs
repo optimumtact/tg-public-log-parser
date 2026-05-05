@@ -27,10 +27,13 @@ pub async fn get(
     OriginalUri(uri): OriginalUri,
     Query(params): Query<HashMap<String, String>>,
 ) -> Result<impl IntoResponse, axum::response::Response> {
+    let decoded_path = percent_encoding::percent_decode_str(uri.path()).decode_utf8_lossy();
+    tracing::debug!("path after percent decoding: {}", decoded_path);
     let requested_path = state
         .config
         .raw_logs_path
-        .join(uri.path().strip_prefix('/').unwrap_or_else(|| uri.path()));
+        .join(decoded_path.strip_prefix('/').unwrap_or(&decoded_path));
+
 
     if !requested_path.starts_with(&state.config.raw_logs_path) {
         tracing::warn!("attempted path traversal: {uri}");
